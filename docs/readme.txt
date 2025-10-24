@@ -1,0 +1,1 @@
+- After delting a map, we have to go to related rooms and save. Otherwise we have them mapped to a not existing map.

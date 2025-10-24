@@ -1,0 +1,36 @@
+.navigationmap__hotspotimage-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+}
+
+.navigationmap__hotspotimage {
+    width: 100%;
+}
+
+.navigationmap__hotspot {
+    position: absolute;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    height: 30px;
+    border: 2px solid black;
+    border-radius: 50%;
+    transform: translate3d(-50%, -50%, 0);
+    background-color: white;
+    color: #333;
+
+    touch-action: none;
+    user-select: none;
+    /* transform: translate(0px, 0px); */
+    /* transition: all 0.3s ease-in-out; */
+}
+
+.navigationmap__hotpot-interaction--wrapper {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px;
+}

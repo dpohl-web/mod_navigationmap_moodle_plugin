@@ -1,0 +1,218 @@
+necessary form fields and values
+
+map:
+room_map_token: string
+name: string
+short_description: string 250 ch (textarea)
+long_description: string (editor)
+image: fileupload
+is_map: int
+[if rooms are made and mapped] 
+	room_link: string (url) autofilled cause of map mapping in rooms (value: id)
+	room_hotspots: array
+		x-value: int
+		y-value: int
+		number: string
+[end if rooms are made and mapped]
+
+room:
+room_map_token: string
+name: string
+short_description: string 250 ch (textarea)
+long_description: string (editor)
+image: fileupload
+is_map: int
+topics: array
+	topic_link: string (url)
+	topic_name: id (hidden from topic_link)
+	topic_image: fileupload
+	[if maps are not assigned] 
+		topic_hotspots: array
+			x-value: int
+			y-value: int
+			number: string
+	[end if maps are not assigned]
+[if maps are created] 
+	towhichmapbelongstheroom: id (select)
+[end if maps are created]
+
+usecase:
+1. Create maps without rooms (because rooms are visible automaticly after mapping them to the map).
+2. Create rooms with topics (and hotspots for topics if there are no mapped maps).
+3. Go back to maps and fill out rooms with hotspots
+
+
+
+[repeatables]
+	editor:
+		mod_form.php:
+		// Dynamicly map topics / sections to the room
+            $repeatarray = array();
+            $repeatarray[] = $mform->createElement('header', 'topicinroomheader', get_string('topicinroomheader', 'navigationmap'));
+            $repeatarray[] = $mform->createElement('text', 'topicname', get_string('topicname', 'navigationmap'));
+            $repeatarray[] = $mform->createElement('text', 'topicshortdescription', get_string('topicshortdescription', 'navigationmap'));
+            $repeatarray[] = $mform->createElement('editor', 'topiclongdescription', get_string('topiclongdescription', 'navigationmap'), null, navigationmap_get_editor_options($this->context));
+            
+            // $repeatno = $DB->count_records('navigationmap_topics_to_room', array('room_map_token' => $room_map_token));
+            // if ($repeatno === 0) {
+            //     $repeatno = 1;
+                // }
+                
+                if (!empty($this->_instance)) {
+                    $this->_topics = $DB->get_records('navigationmap_topics_to_room',
+                        array('room_map_token' => $this->current->room_map_token));
+                    $repeatno = count($this->_topics);
+                } else {
+                    $this->_topics = array();
+                    $repeatno = 1;
+                }
+                
+                $repeateloptions = array();
+                $repeateloptions['topicinroomheader']['disabledif'] = array('is_map', 'eq', 1);
+                $repeateloptions['topicname']['type'] = PARAM_TEXT;
+                $repeateloptions['topicname']['disabledif'] = array('is_map', 'eq', 1);
+                $repeateloptions['topicshortdescription']['type'] = PARAM_TEXT;
+                $repeateloptions['topicshortdescription']['disabledif'] = array('is_map', 'eq', 1);
+                // $repeateloptions['limit']['rule'] = 'numeric';
+                // $repeateloptions['limit']['type'] = PARAM_INT;
+                
+                // $repeateloptions['option']['helpbutton'] = array('choiceoptions', 'choice');
+                // $mform->setType('option', PARAM_CLEANHTML);
+                
+                $this->repeat_elements($repeatarray, $repeatno, $repeateloptions, 'option_repeats', 'option_add_fields', 1, null, false);
+				
+				
+				
+				
+				function data_preprocessing(&$default_values):
+				
+				if (!empty($this->current->instance) && count($this->_topics)) {
+            $index = 0;
+            foreach ($this->_topics as $key => $value){
+                
+                $default_values['topicname['.$index.']'] = $value->topicname;
+                $default_values['topicshortdescription['.$index.']'] = $value->topicshortdescription;
+                $draftid = file_get_submitted_draft_itemid('topiclongdescription['.$index.']');
+                $default_values['topiclongdescription['.$index.']']['text'] = file_prepare_draft_area(
+                    $draftid,               // Draftid.
+                    $this->context->id,     // Context.
+                    'mod_navigationmap',    // Component.
+                    'topiclongdescription',             // Filarea.
+                    !empty($value->id) ? (int) $value->id : null, // Itemid.
+                    null,
+                    $value->topiclongdescription // Text.
+                    );
+                $default_values['topiclongdescription['.$index.']']['format'] = $value->topiclongdescriptionformat;
+                $default_values['topiclongdescription['.$index.']']['itemid'] = $draftid;
+                $index++;
+                }
+                
+            }
+            
+            
+            lib.php
+            
+            function navigationmap_add_instance($data, $mform = null) {
+    global $CFG, $DB;
+    require_once("$CFG->libdir/resourcelib.php");
+    
+    $cmid = $data->coursemodule;
+    
+    $data->timemodified = time();
+    $displayoptions = array();
+    if ($data->display == RESOURCELIB_DISPLAY_POPUP) {
+        $displayoptions['popupwidth']  = $data->popupwidth;
+        $displayoptions['popupheight'] = $data->popupheight;
+    }
+    $displayoptions['printheading'] = $data->printheading;
+    $displayoptions['printintro']   = $data->printintro;
+    $data->displayoptions = serialize($displayoptions);
+    
+    if ($mform) {
+        $data->content       = $data->navigationmap['text'];
+        $data->contentformat = $data->navigationmap['format'];
+    }
+    
+    // No exception catch here because if the token is already there, only the first request is needed.
+    
+    $context = context_module::instance($cmid);
+    
+
+    $data = topics_after_add_or_update($data, $context, $cmid, $mform);
+
+    $data->id = $DB->insert_record('navigationmap', $data);
+    // we need to use context now, so we need to make sure all needed info is already in db
+//     $DB->set_field('course_modules', 'instance', $data->id, array('id'=>$cmid));
+
+    
+
+    
+    
+
+    // $data_for_topic_to_room = '';
+
+    
+    
+
+    if ($mform and !empty($data->navigationmap['itemid'])) {
+        $draftitemid = $data->navigationmap['itemid'];
+        $data->content = file_save_draft_area_files($draftitemid, $context->id, 'mod_navigationmap', 'content', 0, navigationmap_get_editor_options($context), $data->content);
+        $DB->update_record('navigationmap', $data);
+    }
+    
+    if ($data->card_image) {
+        file_save_draft_area_files($data->card_image, $context->id, 'mod_navigationmap', 'card_image', 0, array('subdirs' => 0, 'maxbytes' => 2485760, 'areamaxbytes' => 2485760, 'maxfiles' => 1,
+            'accepted_types' => array('jpg', 'jpeg', 'png', 'gif')));
+    }
+
+    $completiontimeexpected = !empty($data->completionexpected) ? $data->completionexpected : null;
+    \core_completion\api::update_completion_date_event($cmid, 'navigationmap', $data->id, $completiontimeexpected);
+
+    return $data->id;
+}
+
+
+/**
+ * This function is called at the end of quiz_add_instance
+ * and quiz_update_instance, to do the common processing.
+ *
+ * @param object $quiz the quiz object.
+ */
+function topics_after_add_or_update($data, $context, $cmid, $mform) {
+    global $DB;
+    $DB->delete_records('navigationmap_topics_to_room', array('room_map_token' => $data->room_map_token));
+    //insert topics
+    if (count($data->topicname) > 0) {
+        $topics = array();
+        for ($x = 0; $x < count($data->topicname); $x++) {
+            $topic = new stdClass();
+            $topic->topiclongdescription       = $data->topiclongdescription[$x]['text'];
+            $topic->topiclongdescriptionformat = $data->topiclongdescription[$x]['format'];
+            
+            
+            $topic->room_map_token = $data->room_map_token;
+            $topic->topicname = $data->topicname[$x];
+            $topic->topicshortdescription = $data->topicshortdescription[$x];
+            
+            $data->id = $DB->insert_record('navigationmap_topics_to_room', $topic);
+            //we need to use context now, so we need to make sure all needed info is already in db
+            $DB->set_field('course_modules', 'instance', $data->id, array('id'=>$cmid));
+            if ($mform and !empty($data->topiclongdescription[$x]['itemid'])) {
+                $draftid = $data->topiclongdescription[$x]['itemid'];
+                $topic->topiclongdescription = file_save_draft_area_files($draftid, $context->id, 'mod_navigationmap', 'topiclongdescription', $data->id, navigationmap_get_editor_options($context), $topic->topiclongdescription);
+                $topic->id = $data->id;
+                $DB->update_record('navigationmap_topics_to_room', $topic);
+            }
+            
+        }
+        unset($data->topicname, $data->topicshortdescription, $data->topiclongdescription);
+    }
+    
+    return $data;
+}
+				
+
+
+
+
+

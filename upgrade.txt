@@ -1,0 +1,5 @@
+This files describes API changes in the mod_navigationmap code.
+
+=== 4.0 ===
+
+* Removed printheading from navigationmap and admin settings. This will now be handled by the activity header and/or theme.
